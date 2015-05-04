@@ -1,0 +1,28 @@
+#!/usr/bin/python
+
+import os
+import sys
+import subprocess
+
+sys.path.insert(0, os.path.join(os.environ['CHARM_DIR'], 'lib'))
+
+from charmhelpers.core import (
+    hookenv,
+    host,
+)
+
+hooks = hookenv.Hooks()
+log = hookenv.log
+
+
+@hooks.hook('logstash-tcp-relation-joined')
+def stop():
+    logstash_host = subprocess.check_output(['relation-get', 'private-address']).rstrip()
+    with open('.logstash', 'w') as f:
+       f.write(logstash_host)
+
+    subprocess.check_call('hooks/start')
+
+if __name__ == "__main__":
+    # execute a hook based on the name the program is called by
+    hooks.execute(sys.argv)

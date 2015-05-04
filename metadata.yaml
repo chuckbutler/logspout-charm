@@ -1,0 +1,19 @@
+name: logspout
+summary: Installs the docker logspout container
+maintainer: Charles Butler <charles.butler@ubuntu.com>
+description: |
+  Install the logspout docker container
+tags:
+  - misc
+subordinate: true
+provides:
+  routes:
+    interface: http
+requires:
+  lumberjack:
+    interface: http
+  docker-host:
+    interface: juju-info
+    scope: container
+  logstash-tcp:
+    interface: logstash-tcp

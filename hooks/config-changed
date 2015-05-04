@@ -1,0 +1,70 @@
+#!/usr/bin/python
+
+from charmhelpers.core import (
+    hookenv,
+    host,
+)
+
+import os
+import subprocess
+import shlex
+import sys
+from docker import Client
+
+hooks = hookenv.Hooks()
+log = hookenv.log
+
+SERVICE = 'logspout'
+
+
+@hooks.hook('config-changed')
+def config_changed():
+    config = hookenv.config()
+
+    for key in config:
+        if config.changed(key):
+            log("config['{}'] changed from {} to {}".format(
+                key, config.previous(key), config[key]))
+
+    config.save()
+
+    # command = "docker pull gliderlabs/logspout:latest"
+    # subprocess.check_call(shlex.split(command))
+
+    build_current_logspout()
+    old = find_running_container()
+    if old is not None:
+        command = "docker kill {}".format(old)
+        subprocess.check_call(shlex.split(command))
+
+
+
+def find_running_container():
+    cli = Client(base_url='unix://var/run/docker.sock')
+
+    for c in cli.containers():
+        if c['Image'] == "gliderlabs/logspout:latest":
+            return c['Id']
+
+def build_current_logspout():
+    ''' Atomic update of the custom go script, and BUILD! '''
+    subprocess.check_call(shlex.split("cp /opt/logspout/modules.go /opt/logspout/custom/modules.go"))
+    with open('/opt/logspout/custom/modules.go') as f:
+        modules = f.readlines()
+
+    for line in modules:
+        if ")\n" in line:
+            modules.remove(line) 
+    modules.append('\t_ "github.com/looplab/logspout-logstash"\n')
+    modules.append(')\n')
+
+    with open('/opt/logspout/custom/modules.go', 'w') as f:
+        f.writelines(modules)
+
+    os.chdir('/opt/logspout/custom')
+    subprocess.check_call(shlex.split('docker build -t logspout ./'))
+    os.chdir(os.environ['CHARM_DIR'])
+
+if __name__ == "__main__":
+    # execute a hook based on the name the program is called by
+    hooks.execute(sys.argv)

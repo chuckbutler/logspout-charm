@@ -1,0 +1,6 @@
+options:
+  ignore-containers:
+    type: string
+    default:
+    description: "Containers to ignore"
+
